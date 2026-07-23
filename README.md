@@ -47,36 +47,55 @@ Built with **Next.js 14 (App Router) + TypeScript + Tailwind CSS** on
 
 ## 🚀 Setup
 
-### 1. Supabase
-Follow **[`supabase/README.md`](supabase/README.md)** — run the six migrations
-in order, (optionally) the seed, and configure the Email auth provider with
-sign-ups disabled.
+### 1. Supabase schema (one paste)
+Open the Supabase **SQL Editor** and run **[`supabase/setup.sql`](supabase/setup.sql)**
+— it is the full schema, RLS, audit, dashboard and admin functions
+(migrations 0001–0006) concatenated and idempotent. Optionally also run
+`supabase/seed.sql` for sample buyers/suppliers/items. Then, under
+_Authentication → Providers → Email_, **disable sign-ups** and email
+confirmation (accounts are created pre-confirmed by the tooling). Details in
+**[`supabase/README.md`](supabase/README.md)**.
 
 ### 2. Environment
 Copy `.env.example` → `.env.local` and fill in your Supabase URL, anon key and
-service-role key.
+service-role key. Set the same variables in Vercel.
 
-### 3. Install & run
+### 3. Provision the login accounts (admin + employees)
+From any machine that can reach your Supabase project (with the env vars set):
 ```bash
 npm install
+npm run bootstrap          # creates admin + sample employees, prints passwords
+# or, custom accounts:
+cp scripts/users.example.json scripts/users.json   # edit usernames/roles/passwords
+npm run bootstrap
+```
+`scripts/users.json` is git-ignored. The script is idempotent and also
+guarantees each account's `profiles` row and role.
+
+### 4. Run
+```bash
 npm run dev
 ```
+Open `http://localhost:3000/login` and sign in with the **username** (not the
+email).
 
-### 4. Create the first admin
-```bash
-npm run create-admin -- --username admin --password 'StrongPass!23' --name 'Head Office'
-```
-Then open `http://localhost:3000/login` and sign in with the **username**.
+> **Note on provisioning from a restricted network:** if the machine running
+> these commands cannot reach `*.supabase.co` (e.g. a locked-down CI/agent
+> egress policy), run `supabase/setup.sql` in the dashboard and
+> `npm run bootstrap` from your laptop instead — both are network-light.
 
 ---
 
 ## ▲ Deploy to Vercel
-1. Push this repo (production branch: **`main`**).
-2. Import the project in Vercel (framework auto-detected as Next.js).
-3. Add the env vars from `.env.example` under **Settings → Environment
+1. Import the project in Vercel (framework auto-detected as Next.js).
+2. Add the env vars from `.env.example` under **Settings → Environment
    Variables** (mark `SUPABASE_SERVICE_ROLE_KEY` for the Production/Preview
    environments only — it is server-side).
-4. Deploy. `vercel.json` pins **`main`** as the production branch.
+3. **Production branch:** in **Settings → Git → Production Branch**, set it to
+   **`claude/import-export-erp-tool-fyyhqx`** for now (switch to `main` later
+   when you promote the release). `vercel.json` enables deployments for both
+   branches.
+4. Deploy.
 
 > Optionally shorten the Supabase JWT expiry for extra hardening; the app’s hard
 > 6-hour window is enforced independently regardless of that value.

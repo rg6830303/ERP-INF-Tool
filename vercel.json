@@ -6,6 +6,7 @@
   "regions": ["bom1"],
   "git": {
     "deploymentEnabled": {
+      "claude/import-export-erp-tool-fyyhqx": true,
       "main": true
     }
   }

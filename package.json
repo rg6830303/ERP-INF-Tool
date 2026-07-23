@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "create-admin": "node scripts/create-admin.mjs"
+    "create-admin": "node scripts/create-admin.mjs",
+    "bootstrap": "node scripts/bootstrap.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
