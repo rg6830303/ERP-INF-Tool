@@ -1,0 +1,88 @@
+name: Supabase DB Setup
+
+# Applies the schema, provisions the login accounts, and verifies data entry +
+# search filters against the live Supabase project. Runs on GitHub's hosted
+# runners (open network), so it works even when local/agent egress is
+# restricted. Trigger it manually from the Actions tab (or via API).
+on:
+  workflow_dispatch:
+    inputs:
+      run_schema:
+        description: 'Apply supabase/setup.sql (schema/RLS/functions)'
+        type: boolean
+        default: true
+      run_seed:
+        description: 'Apply supabase/seed.sql (sample masters)'
+        type: boolean
+        default: true
+      run_bootstrap:
+        description: 'Create admin + employee login accounts'
+        type: boolean
+        default: true
+      run_verify:
+        description: 'Verify data entry + search filters'
+        type: boolean
+        default: true
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      # Optional: JSON array of accounts to create, e.g.
+      #   [{"username":"admin","role":"admin","full_name":"Head Office","password":"..."}]
+      # If unset, sensible defaults are created with auto-generated passwords
+      # printed to this (private) run log.
+      ERP_USERS_JSON: ${{ secrets.ERP_USERS_JSON }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Pre-flight — required secrets
+        run: |
+          missing=0
+          for v in NEXT_PUBLIC_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY; do
+            if [ -z "${!v}" ]; then echo "::error::Missing secret $v"; missing=1; fi
+          done
+          if [ "${{ inputs.run_schema }}" = "true" ] && [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::Missing secret SUPABASE_DB_URL (needed to apply the schema)"; missing=1
+          fi
+          if [ "$missing" = "1" ]; then exit 1; fi
+          echo "All required secrets present."
+
+      - name: Install psql client
+        if: ${{ inputs.run_schema || inputs.run_seed }}
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply schema (setup.sql)
+        if: ${{ inputs.run_schema }}
+        run: |
+          echo "Applying supabase/setup.sql ..."
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/setup.sql
+          echo "Schema applied."
+
+      - name: Apply seed (optional)
+        if: ${{ inputs.run_seed }}
+        run: |
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql || echo "Seed skipped/failed (non-fatal)."
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Provision login accounts (bootstrap)
+        if: ${{ inputs.run_bootstrap }}
+        run: npm run bootstrap
+
+      - name: Verify data entry + search filters
+        if: ${{ inputs.run_verify }}
+        run: npm run verify-db

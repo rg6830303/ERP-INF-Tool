@@ -57,8 +57,17 @@ const DEFAULTS = [
   { username: 'priya', role: 'employee', full_name: 'Priya Nair' },
 ];
 
+// Priority: --users flag → scripts/users.json → ERP_USERS_JSON env (used by CI
+// so passwords stay in a secret, never in the repo or logs) → built-in defaults.
 const usersFile = arg('users') || (existsSync('scripts/users.json') ? 'scripts/users.json' : null);
-const specs = usersFile ? JSON.parse(readFileSync(usersFile, 'utf8')) : DEFAULTS;
+let specs;
+if (usersFile) {
+  specs = JSON.parse(readFileSync(usersFile, 'utf8'));
+} else if (process.env.ERP_USERS_JSON) {
+  specs = JSON.parse(process.env.ERP_USERS_JSON);
+} else {
+  specs = DEFAULTS;
+}
 
 const supabase = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
