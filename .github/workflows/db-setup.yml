@@ -85,6 +85,7 @@ jobs:
         run: npm ci
 
       - name: Provision login accounts (bootstrap)
+        if: ${{ env.ERP_USERS_JSON != '' }}
         run: npm run bootstrap
 
       - name: Verify data entry + search filters
