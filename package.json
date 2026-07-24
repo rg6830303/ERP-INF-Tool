@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "create-admin": "node scripts/create-admin.mjs",
     "bootstrap": "node scripts/bootstrap.mjs",
+    "list-users": "node scripts/list-users.mjs",
     "verify-db": "node scripts/verify.mjs"
   },
   "dependencies": {

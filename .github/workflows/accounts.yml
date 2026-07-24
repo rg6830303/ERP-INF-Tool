@@ -1,0 +1,53 @@
+name: Manage Accounts
+
+# Lists existing accounts (usernames only) and resets/ensures their passwords
+# from a MASKED users_json input. Passwords are never printed to logs.
+on:
+  workflow_dispatch:
+    inputs:
+      supabase_url:
+        description: 'NEXT_PUBLIC_SUPABASE_URL (else secret)'
+        required: false
+        default: ''
+      service_key:
+        description: 'SUPABASE_SERVICE_ROLE_KEY (else secret)'
+        required: false
+        default: ''
+      users_json:
+        description: 'ERP_USERS_JSON accounts+passwords to set (masked)'
+        required: false
+        default: ''
+
+jobs:
+  accounts:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ inputs.supabase_url || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ inputs.service_key || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ERP_USERS_JSON: ${{ inputs.users_json || secrets.ERP_USERS_JSON }}
+    steps:
+      - name: Mask sensitive values
+        run: |
+          [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && echo "::add-mask::$SUPABASE_SERVICE_ROLE_KEY" || true
+          [ -n "$ERP_USERS_JSON" ] && echo "::add-mask::$ERP_USERS_JSON" || true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: List existing accounts (usernames only)
+        run: npm run list-users
+
+      - name: Reset / ensure passwords (masked)
+        if: ${{ env.ERP_USERS_JSON != '' }}
+        run: npm run bootstrap
+
+      - name: List accounts after changes
+        run: npm run list-users
