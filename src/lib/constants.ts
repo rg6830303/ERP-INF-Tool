@@ -1,5 +1,27 @@
 // Centralised app configuration derived from environment variables.
 
+// Resolve the Supabase URL from any of the common env var names. On the server
+// every name is available; in the browser only NEXT_PUBLIC_* names are inlined
+// (the values are also injected at runtime via window.__IE_SUPABASE__).
+export function getSupabaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.SUPABASE_URL ||
+    ''
+  );
+}
+
+// Resolve the public anon / publishable key (safe to expose; RLS still applies).
+export function getSupabaseAnonKey(): string {
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    ''
+  );
+}
+
 export const AUTH_EMAIL_DOMAIN =
   process.env.NEXT_PUBLIC_AUTH_EMAIL_DOMAIN?.trim() || 'infinityexports.local';
 

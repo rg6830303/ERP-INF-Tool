@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { SESSION_START_COOKIE } from '@/lib/constants';
+import { SESSION_START_COOKIE, getSupabaseUrl, getSupabaseAnonKey } from '@/lib/constants';
 
 // Routes that never require authentication.
 const PUBLIC_PATHS = ['/login'];
@@ -15,8 +15,8 @@ export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         getAll() {

@@ -2,18 +2,30 @@
 
 import { useFormState, useFormStatus } from 'react-dom';
 import { useState } from 'react';
-import { Eye, EyeOff, LogIn, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Loader2, ShieldCheck } from 'lucide-react';
 import { signIn, type LoginState } from './actions';
 
 const initialState: LoginState = { error: null };
 
-function SubmitButton() {
+function SubmitButton({ portal }: { portal: 'user' | 'admin' }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn-primary w-full" disabled={pending}>
+    <button
+      type="submit"
+      className={`btn w-full text-white ${
+        portal === 'admin'
+          ? 'bg-slate-900 hover:bg-slate-800 focus:ring-slate-500'
+          : 'bg-brand-600 hover:bg-brand-700 focus:ring-brand-500'
+      }`}
+      disabled={pending}
+    >
       {pending ? (
         <>
           <Loader2 className="h-4 w-4 animate-spin" /> Signing in…
+        </>
+      ) : portal === 'admin' ? (
+        <>
+          <ShieldCheck className="h-4 w-4" /> Sign in to Admin
         </>
       ) : (
         <>
@@ -24,12 +36,20 @@ function SubmitButton() {
   );
 }
 
-export function LoginForm({ notice }: { notice?: string | null }) {
+export function LoginForm({
+  portal,
+  notice,
+}: {
+  portal: 'user' | 'admin';
+  notice?: string | null;
+}) {
   const [state, formAction] = useFormState(signIn, initialState);
   const [showPw, setShowPw] = useState(false);
 
   return (
     <form action={formAction} className="space-y-4">
+      <input type="hidden" name="portal" value={portal} />
+
       {notice && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           {notice}
@@ -42,11 +62,11 @@ export function LoginForm({ notice }: { notice?: string | null }) {
       )}
 
       <div>
-        <label htmlFor="username" className="label">
+        <label htmlFor={`username-${portal}`} className="label">
           Username
         </label>
         <input
-          id="username"
+          id={`username-${portal}`}
           name="username"
           type="text"
           autoComplete="username"
@@ -54,17 +74,17 @@ export function LoginForm({ notice }: { notice?: string | null }) {
           spellCheck={false}
           required
           className="input"
-          placeholder="e.g. rakesh"
+          placeholder={portal === 'admin' ? 'e.g. admin' : 'e.g. rakesh'}
         />
       </div>
 
       <div>
-        <label htmlFor="password" className="label">
+        <label htmlFor={`password-${portal}`} className="label">
           Password
         </label>
         <div className="relative">
           <input
-            id="password"
+            id={`password-${portal}`}
             name="password"
             type={showPw ? 'text' : 'password'}
             autoComplete="current-password"
@@ -83,7 +103,7 @@ export function LoginForm({ notice }: { notice?: string | null }) {
         </div>
       </div>
 
-      <SubmitButton />
+      <SubmitButton portal={portal} />
     </form>
   );
 }

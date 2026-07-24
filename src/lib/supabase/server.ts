@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/constants';
 
 // Server-side Supabase client bound to the request cookies. Use inside Server
 // Components, Server Actions and Route Handlers. Still anon-key + RLS bound.
@@ -7,8 +8,8 @@ export function createClient() {
   const cookieStore = cookies();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     {
       cookies: {
         getAll() {

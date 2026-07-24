@@ -13,6 +13,7 @@ import {
 const credentials = z.object({
   username: z.string().trim().min(1, 'Username is required').max(64),
   password: z.string().min(1, 'Password is required').max(200),
+  portal: z.enum(['user', 'admin']).default('user'),
 });
 
 export type LoginState = { error: string | null };
@@ -24,12 +25,14 @@ export async function signIn(
   const parsed = credentials.safeParse({
     username: formData.get('username'),
     password: formData.get('password'),
+    portal: formData.get('portal') ?? 'user',
   });
 
   if (!parsed.success) {
     return { error: parsed.error.errors[0]?.message ?? 'Invalid input' };
   }
 
+  const { portal } = parsed.data;
   const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: usernameToEmail(parsed.data.username),
@@ -41,16 +44,21 @@ export async function signIn(
     return { error: 'Invalid username or password.' };
   }
 
-  // Block accounts an admin has deactivated.
+  // Block accounts an admin has deactivated, and enforce the admin portal.
   const { data: profile } = await supabase
     .from('profiles')
-    .select('is_active')
+    .select('is_active, role')
     .eq('id', data.user.id)
     .single();
 
   if (!profile?.is_active) {
     await supabase.auth.signOut();
     return { error: 'This account has been disabled. Contact your administrator.' };
+  }
+
+  if (portal === 'admin' && profile.role !== 'admin') {
+    await supabase.auth.signOut();
+    return { error: 'This is not an administrator account. Use the Employee tab.' };
   }
 
   // Start the hard 6-hour session window.
@@ -69,7 +77,7 @@ export async function signIn(
     /* ignore */
   }
 
-  redirect('/dashboard');
+  redirect(portal === 'admin' ? '/admin' : '/dashboard');
 }
 
 export async function signOut() {
