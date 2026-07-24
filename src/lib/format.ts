@@ -48,6 +48,19 @@ export function formatDateTime(value: string | null | undefined): string {
   });
 }
 
+export function formatBytes(bytes: number | null | undefined): string {
+  const n = typeof bytes === 'number' ? bytes : 0;
+  if (!n || n < 1024) return `${n} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let val = n / 1024;
+  let i = 0;
+  while (val >= 1024 && i < units.length - 1) {
+    val /= 1024;
+    i++;
+  }
+  return `${val.toFixed(val >= 100 ? 0 : 1)} ${units[i]}`;
+}
+
 export function titleCase(s: string): string {
   return s.replace(/(^|[\s_-])(\w)/g, (_, sep, c) => `${sep === '_' || sep === '-' ? ' ' : sep}${c.toUpperCase()}`);
 }

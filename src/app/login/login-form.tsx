@@ -74,7 +74,7 @@ export function LoginForm({
           spellCheck={false}
           required
           className="input"
-          placeholder={portal === 'admin' ? 'e.g. admin' : 'e.g. rakesh'}
+          placeholder="Enter username"
         />
       </div>
 
@@ -90,7 +90,7 @@ export function LoginForm({
             autoComplete="current-password"
             required
             className="input pr-10"
-            placeholder="••••••••"
+            placeholder="Enter password"
           />
           <button
             type="button"

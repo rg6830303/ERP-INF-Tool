@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Ship, ShieldCheck, Users2, Database, Activity } from 'lucide-react';
+import { Ship, ShieldCheck } from 'lucide-react';
 import { APP_NAME, APP_TAGLINE } from '@/lib/constants';
+import { Logo } from '@/components/ui/Logo';
 import { LoginForm } from './login-form';
 
 type Portal = 'user' | 'admin';
@@ -28,8 +29,8 @@ export function LoginTabs({
         }`}
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15">
-            {isAdmin ? <ShieldCheck className="h-6 w-6" /> : <Ship className="h-6 w-6" />}
+          <div className="flex items-center justify-center rounded-xl bg-white p-1.5 shadow-sm">
+            <Logo size={40} />
           </div>
           <div>
             <p className="text-lg font-bold leading-tight">{APP_NAME}</p>
@@ -39,32 +40,12 @@ export function LoginTabs({
           </div>
         </div>
 
-        {isAdmin ? (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold leading-snug">Master control of the entire tool.</h2>
-            <ul className="space-y-2 text-sm text-slate-200">
-              <li className="flex items-center gap-2">
-                <Users2 className="h-4 w-4 text-slate-400" /> Create, edit & disable employee accounts
-              </li>
-              <li className="flex items-center gap-2">
-                <Database className="h-4 w-4 text-slate-400" /> Direct database access & queries
-              </li>
-              <li className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-slate-400" /> Full activity & audit trail
-              </li>
-            </ul>
+        {/* Logo mark, centered */}
+        <div className="flex flex-1 items-center justify-center py-8">
+          <div className="rounded-2xl bg-white p-6 shadow-lg">
+            <Logo size={140} rounded={false} />
           </div>
-        ) : (
-          <div className="space-y-3">
-            <h2 className="text-2xl font-bold leading-snug">
-              Manage sales, purchase, inventory, accounts &amp; incentives — in one place.
-            </h2>
-            <p className="text-sm text-brand-100">
-              Fast data entry and powerful Buyer / Date / Item search across your whole
-              import-export workflow.
-            </p>
-          </div>
-        )}
+        </div>
 
         <p className={`text-xs ${isAdmin ? 'text-slate-400' : 'text-brand-200'}`}>
           Sessions automatically end after {sessionHours} hours for your security.
@@ -95,27 +76,16 @@ export function LoginTabs({
           </button>
         </div>
 
-        <div className="mb-6 md:hidden">
-          <div className="flex items-center gap-2">
-            <div
-              className={`flex h-9 w-9 items-center justify-center rounded-lg text-white ${
-                isAdmin ? 'bg-slate-900' : 'bg-brand-600'
-              }`}
-            >
-              {isAdmin ? <ShieldCheck className="h-5 w-5" /> : <Ship className="h-5 w-5" />}
-            </div>
-            <span className="font-bold text-slate-900">{APP_NAME}</span>
-          </div>
+        {/* Mobile brand */}
+        <div className="mb-6 flex items-center gap-2 md:hidden">
+          <Logo size={36} />
+          <span className="font-bold text-slate-900">{APP_NAME}</span>
         </div>
 
         <h1 className="text-xl font-bold text-slate-900">
           {isAdmin ? 'Admin sign in' : 'Employee sign in'}
         </h1>
-        <p className="mb-6 mt-1 text-sm text-slate-500">
-          {isAdmin
-            ? 'Restricted to administrator accounts.'
-            : 'Sign in to your account to continue.'}
-        </p>
+        <p className="mb-6 mt-1 text-sm text-slate-500">Sign in to continue.</p>
 
         {/* key forces a fresh form (and clears errors) when switching tabs */}
         <LoginForm key={portal} portal={portal} notice={notice} />

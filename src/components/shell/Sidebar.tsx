@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Ship, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { APP_NAME, APP_TAGLINE } from '@/lib/constants';
+import { Logo } from '@/components/ui/Logo';
 import { NAV_SECTIONS } from './nav';
 
 function isActive(pathname: string, href: string): boolean {
@@ -40,9 +41,7 @@ export function Sidebar({
       >
         <div className="flex h-16 items-center justify-between border-b border-slate-200 px-5">
           <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">
-              <Ship className="h-5 w-5" />
-            </div>
+            <Logo size={36} />
             <div className="leading-tight">
               <p className="text-sm font-bold text-slate-900">{APP_NAME}</p>
               <p className="text-[10px] uppercase tracking-wide text-slate-400">

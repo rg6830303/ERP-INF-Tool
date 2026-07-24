@@ -6,31 +6,48 @@ import {
   Activity,
   Database,
   ArrowRight,
+  HardDrive,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatBytes } from '@/lib/format';
+import { DB_SIZE_LIMIT_MB } from '@/lib/constants';
 import type { ActivityLog } from '@/types/database';
 
 export const dynamic = 'force-dynamic';
 
+type DbStats = { database_bytes: number; total_records: number; account_count: number };
+
 export default async function AdminHome() {
   const supabase = createClient();
 
-  const [{ count: totalUsers }, { count: activeUsers }, { count: adminUsers }, { data: recent }] =
-    await Promise.all([
-      supabase.from('profiles').select('*', { count: 'exact', head: true }),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_active', true),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
-      supabase
-        .from('activity_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(8),
-    ]);
+  const [
+    { count: totalUsers },
+    { count: activeUsers },
+    { count: adminUsers },
+    { data: recent },
+    { data: dbStatsData },
+  ] = await Promise.all([
+    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
+    supabase
+      .from('activity_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(8),
+    supabase.rpc('admin_db_stats'),
+  ]);
 
   const logs = (recent as ActivityLog[]) ?? [];
+
+  // Real Supabase database size vs the plan cap.
+  const dbStats = (dbStatsData as DbStats) ?? null;
+  const usedBytes = dbStats?.database_bytes ?? 0;
+  const capBytes = DB_SIZE_LIMIT_MB * 1024 * 1024;
+  const usedPct = capBytes > 0 ? Math.min(100, (usedBytes / capBytes) * 100) : 0;
+  const remainingBytes = Math.max(0, capBytes - usedBytes);
 
   return (
     <div>
@@ -44,6 +61,44 @@ export default async function AdminHome() {
         <StatCard label="Total Accounts" value={totalUsers ?? 0} icon={Users2} tone="brand" />
         <StatCard label="Active Accounts" value={activeUsers ?? 0} icon={UserCheck} tone="green" />
         <StatCard label="Administrators" value={adminUsers ?? 0} icon={ShieldCheck} tone="amber" />
+      </div>
+
+      {/* Database storage — real Supabase database size vs plan cap */}
+      <div className="mt-4 card p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+              <HardDrive className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Database Storage
+              </p>
+              <p className="mt-0.5 text-2xl font-bold text-slate-900">
+                {formatBytes(remainingBytes)}{' '}
+                <span className="text-sm font-medium text-slate-400">remaining</span>
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">
+                {formatBytes(usedBytes)} used of {DB_SIZE_LIMIT_MB} MB ·{' '}
+                {dbStats ? dbStats.total_records.toLocaleString() : 0} records
+              </p>
+            </div>
+          </div>
+          <div className="w-full sm:w-80">
+            <div className="mb-1 flex justify-between text-xs text-slate-500">
+              <span>{usedPct.toFixed(usedPct < 1 ? 2 : 1)}% used</span>
+              <span>{DB_SIZE_LIMIT_MB} MB</span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  usedPct > 90 ? 'bg-red-500' : usedPct > 70 ? 'bg-amber-500' : 'bg-brand-500'
+                }`}
+                style={{ width: `${Math.max(usedPct, 1)}%` }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Admin tools */}

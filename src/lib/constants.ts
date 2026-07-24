@@ -38,6 +38,13 @@ export const SESSION_START_COOKIE = 'ie_session_start';
 export const APP_NAME = 'Infinity Exports';
 export const APP_TAGLINE = 'Import / Export ERP';
 
+// Database size cap used to compute "storage remaining" on the admin dashboard.
+// Defaults to the Supabase Free plan's 500 MB database limit; override with
+// NEXT_PUBLIC_DB_SIZE_LIMIT_MB to match your plan (Pro = 8192, etc.).
+export const DB_SIZE_LIMIT_MB = Number(
+  process.env.NEXT_PUBLIC_DB_SIZE_LIMIT_MB ?? '500',
+);
+
 // Map a bare username to the synthetic email used by Supabase Auth.
 export function usernameToEmail(username: string): string {
   const clean = username.trim().toLowerCase();

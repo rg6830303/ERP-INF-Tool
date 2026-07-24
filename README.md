@@ -92,13 +92,15 @@ email).
    Variables** (mark `SUPABASE_SERVICE_ROLE_KEY` for the Production/Preview
    environments only — it is server-side).
 3. **Production branch:** in **Settings → Git → Production Branch**, set it to
-   **`claude/import-export-erp-tool-fyyhqx`** for now (switch to `main` later
-   when you promote the release). `vercel.json` enables deployments for both
-   branches.
+   **`main`**. `vercel.json` enables deployments for `main` (and the working
+   branch) and pins the function **region to `iad1`** (US-East) to sit next to
+   the Supabase project in `us-east-1` — this removes cross-region latency and
+   is the main fix for the slow dashboards.
 4. Deploy.
 
 > Optionally shorten the Supabase JWT expiry for extra hardening; the app’s hard
-> 6-hour window is enforced independently regardless of that value.
+> 6-hour window is enforced independently regardless of that value. Multiple
+> concurrent sessions per user across unlimited devices are allowed.
 
 ---
 

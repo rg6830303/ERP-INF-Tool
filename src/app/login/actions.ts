@@ -56,9 +56,14 @@ export async function signIn(
     return { error: 'This account has been disabled. Contact your administrator.' };
   }
 
+  // Strict separation: each tab only accepts its own role.
   if (portal === 'admin' && profile.role !== 'admin') {
     await supabase.auth.signOut();
-    return { error: 'This is not an administrator account. Use the Employee tab.' };
+    return { error: 'These are not administrator credentials. Use the Employee tab.' };
+  }
+  if (portal === 'user' && profile.role !== 'employee') {
+    await supabase.auth.signOut();
+    return { error: 'These are administrator credentials. Use the Administrator tab.' };
   }
 
   // Start the hard 6-hour session window.

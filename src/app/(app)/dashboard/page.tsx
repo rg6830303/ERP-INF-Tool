@@ -35,14 +35,17 @@ export default async function DashboardPage() {
   const profile = await requireProfile();
   const supabase = createClient();
 
-  const { data: statsData } = await supabase.rpc('erp_dashboard');
-  const stats = (statsData as Stats) ?? ({} as Stats);
-
-  const { data: recentSales } = await supabase
-    .from('sales')
-    .select('id, invoice_no, sale_date, total_amount, currency, status, buyers(name)')
-    .order('created_at', { ascending: false })
-    .limit(6);
+  // Run the dashboard aggregate and the recent-sales list concurrently.
+  const [statsRes, recentRes] = await Promise.all([
+    supabase.rpc('erp_dashboard'),
+    supabase
+      .from('sales')
+      .select('id, invoice_no, sale_date, total_amount, currency, status, buyers(name)')
+      .order('created_at', { ascending: false })
+      .limit(6),
+  ]);
+  const stats = (statsRes.data as Stats) ?? ({} as Stats);
+  const recentSales = recentRes.data;
 
   return (
     <div>

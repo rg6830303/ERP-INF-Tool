@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
@@ -13,7 +14,9 @@ export type Profile = {
 };
 
 // Returns the authenticated user's profile, or null when signed out.
-export async function getProfile(): Promise<Profile | null> {
+// Wrapped in React cache() so repeated calls within one server render (e.g.
+// the app layout AND the page) share a single auth + DB round trip.
+export const getProfile = cache(async (): Promise<Profile | null> => {
   const supabase = createClient();
   const {
     data: { user },
@@ -27,7 +30,7 @@ export async function getProfile(): Promise<Profile | null> {
     .single();
 
   return (profile as Profile) ?? null;
-}
+});
 
 // Guard for any authenticated page. Redirects to /login when signed out and
 // blocks accounts an admin has deactivated.

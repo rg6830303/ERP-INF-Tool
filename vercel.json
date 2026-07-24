@@ -3,11 +3,11 @@
   "framework": "nextjs",
   "buildCommand": "next build",
   "installCommand": "npm install",
-  "regions": ["bom1"],
+  "regions": ["iad1"],
   "git": {
     "deploymentEnabled": {
-      "claude/import-export-erp-tool-fyyhqx": true,
-      "main": true
+      "main": true,
+      "claude/import-export-erp-tool-fyyhqx": true
     }
   }
 }

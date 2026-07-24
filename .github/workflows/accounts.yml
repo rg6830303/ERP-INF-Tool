@@ -17,6 +17,10 @@ on:
         description: 'ERP_USERS_JSON accounts+passwords to set (masked)'
         required: false
         default: ''
+      renames_json:
+        description: 'Rename accounts, e.g. [{"from":"rakesh","to":"krishna","full_name":"Krishna"}]'
+        required: false
+        default: ''
 
 jobs:
   accounts:
@@ -25,6 +29,7 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ inputs.supabase_url || secrets.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ inputs.service_key || secrets.SUPABASE_SERVICE_ROLE_KEY }}
       ERP_USERS_JSON: ${{ inputs.users_json || secrets.ERP_USERS_JSON }}
+      RENAME_JSON: ${{ inputs.renames_json }}
     steps:
       - name: Mask sensitive values
         run: |
@@ -44,6 +49,10 @@ jobs:
 
       - name: List existing accounts (usernames only)
         run: npm run list-users
+
+      - name: Rename accounts (password unchanged)
+        if: ${{ env.RENAME_JSON != '' }}
+        run: npm run rename-user
 
       - name: Reset / ensure passwords (masked)
         if: ${{ env.ERP_USERS_JSON != '' }}
