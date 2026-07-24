@@ -52,7 +52,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/admin', label: 'Admin Home', icon: ShieldCheck },
       { href: '/admin/users', label: 'Employees', icon: Users2 },
-      { href: '/admin/activity', label: 'Activity Log', icon: Activity },
+      { href: '/admin/activity', label: 'User Activity', icon: Activity },
       { href: '/admin/database', label: 'Database', icon: Database },
     ],
   },

@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Infinity Exports ERP — CONSOLIDATED SETUP
 -- Paste this ENTIRE file into the Supabase SQL Editor and run once.
--- Concatenation of migrations 0001–0007 (idempotent, safe to re-run).
+-- Concatenation of migrations 0001–0008 (idempotent, safe to re-run).
 -- After running this, provision logins with: node scripts/bootstrap.mjs
 -- ============================================================================
 
@@ -658,7 +658,7 @@ begin
     execute format('drop policy if exists %1$s_delete on public.%1$I;', t);
     execute format(
       'create policy %1$s_delete on public.%1$I for delete to authenticated
-         using (public.is_admin());', t);
+         using (public.is_active_account());', t);
   end loop;
 end $$;
 
@@ -834,4 +834,27 @@ $$;
 
 revoke all on function public.admin_db_stats() from public;
 grant execute on function public.admin_db_stats() to authenticated;
+
+-- >>> 0008_delete_policies.sql ------------------------------------------------------------
+-- ============================================================================
+-- Infinity Exports ERP — 0008 Allow active accounts to delete business records
+-- Both employees and admins may add / edit / remove operational data.
+-- (Profiles & activity_logs are unaffected — still admin-only / append-only.)
+-- ============================================================================
+
+do $$
+declare t text;
+  tbls text[] := array[
+    'buyers','suppliers','items',
+    'sales','sale_items','purchases','purchase_items',
+    'stock_movements','account_entries','incentives'
+  ];
+begin
+  foreach t in array tbls loop
+    execute format('drop policy if exists %1$s_delete on public.%1$I;', t);
+    execute format(
+      'create policy %1$s_delete on public.%1$I for delete to authenticated
+         using (public.is_active_account());', t);
+  end loop;
+end $$;
 

@@ -82,7 +82,7 @@ begin
     execute format('drop policy if exists %1$s_delete on public.%1$I;', t);
     execute format(
       'create policy %1$s_delete on public.%1$I for delete to authenticated
-         using (public.is_admin());', t);
+         using (public.is_active_account());', t);
   end loop;
 end $$;
 

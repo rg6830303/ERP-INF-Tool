@@ -4,9 +4,9 @@
  * changing their password or their user id. Reads a JSON spec from --renames,
  * a file, or the RENAME_JSON env var:
  *
- *   [{ "from": "rakesh", "to": "krishna", "full_name": "Krishna" }]
+ *   [{ "from": "olduser", "to": "newuser", "full_name": "New Name" }]
  *
- *   node scripts/rename-user.mjs --renames '[{"from":"rakesh","to":"krishna","full_name":"Krishna"}]'
+ *   node scripts/rename-user.mjs --renames '[{"from":"olduser","to":"newuser","full_name":"New Name"}]'
  *
  * Requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
  * Prints usernames only — never passwords.

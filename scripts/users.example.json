@@ -1,5 +1,5 @@
 [
   { "username": "admin", "role": "admin", "full_name": "Head Office", "password": "ChangeMe-Admin#2026" },
-  { "username": "rakesh", "role": "employee", "full_name": "Rakesh Sharma", "password": "ChangeMe-Rakesh#2026" },
+  { "username": "krishna", "role": "employee", "full_name": "Krishna", "password": "ChangeMe-Krishna#2026" },
   { "username": "priya", "role": "employee", "full_name": "Priya Nair", "password": "ChangeMe-Priya#2026" }
 ]

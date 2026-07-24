@@ -41,8 +41,8 @@ export default function ActivityPage() {
   return (
     <div>
       <PageHeader
-        title="Activity Log"
-        subtitle="Complete audit trail of every login and data change."
+        title="User Activity"
+        subtitle="Every action by each user account — logins, and all data added, edited or removed."
         icon={Activity}
         action={
           <button onClick={load} className="btn-secondary">

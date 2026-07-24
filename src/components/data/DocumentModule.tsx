@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, RefreshCw, Loader2, Inbox, Filter, X, Eye } from 'lucide-react';
+import { Plus, Search, RefreshCw, Loader2, Inbox, Filter, X, Eye, Pencil, Trash2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -59,12 +59,14 @@ export function DocumentModule({ config, icon }: { config: DocConfig; icon?: Luc
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  // New-document drawer
+  // New/edit-document drawer
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [header, setHeader] = useState<Record<string, string>>({});
   const [lines, setLines] = useState<LineRow[]>([emptyLine()]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Detail drawer
   const [detail, setDetail] = useState<Row | null>(null);
@@ -156,7 +158,7 @@ export function DocumentModule({ config, icon }: { config: DocConfig; icon?: Luc
   const hasFilters =
     !!search || !!partyId || !!itemId || !!status || !!dateFrom || !!dateTo;
 
-  // ---- New document ---------------------------------------------------------
+  // ---- New / edit document --------------------------------------------------
   function openNew() {
     const init: Record<string, string> = {
       [config.docNoField]: '',
@@ -169,8 +171,60 @@ export function DocumentModule({ config, icon }: { config: DocConfig; icon?: Luc
     for (const f of config.extraHeaderFields) init[f.name] = f.default != null ? String(f.default) : '';
     setHeader(init);
     setLines([emptyLine()]);
+    setEditingId(null);
     setFormError(null);
     setOpen(true);
+  }
+
+  async function openEdit(row: Row) {
+    const init: Record<string, string> = {
+      [config.docNoField]: row[config.docNoField] ?? '',
+      [config.partyField]: row[config.partyField] ?? '',
+      [config.dateField]: row[config.dateField] ?? '',
+      currency: row.currency ?? 'USD',
+      exchange_rate: String(row.exchange_rate ?? '1'),
+      status: row.status ?? config.statusDefault,
+    };
+    for (const f of config.extraHeaderFields) {
+      const v = row[f.name];
+      init[f.name] = v === null || v === undefined ? '' : String(v);
+    }
+    setHeader(init);
+    setEditingId(String(row.id));
+    setFormError(null);
+    setOpen(true);
+
+    // Load existing line items into the editor.
+    const { data } = await supabase
+      .from(config.lineTable)
+      .select('*')
+      .eq(config.lineFk, row.id)
+      .order('line_no');
+    const existing: LineRow[] = (data as Row[] | null)?.map((l) => ({
+      item_id: l.item_id ?? '',
+      description: l.description ?? '',
+      hs_code: l.hs_code ?? '',
+      quantity: String(l.quantity ?? '0'),
+      unit: l.unit ?? 'PCS',
+      unit_price: String(l.unit_price ?? '0'),
+    })) ?? [];
+    setLines(existing.length ? existing : [emptyLine()]);
+  }
+
+  async function remove(row: Row) {
+    if (!confirm(`Delete ${config.docNoLabel} ${row[config.docNoField]}? This cannot be undone.`))
+      return;
+    setDeletingId(String(row.id));
+    // Line items cascade-delete via the foreign key.
+    const { error } = await supabase.from(config.table).delete().eq('id', row.id);
+    setDeletingId(null);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setToast(`${config.singular} deleted.`);
+    setTimeout(() => setToast(null), 3000);
+    fetchRows();
   }
 
   async function save(e: React.FormEvent) {
@@ -204,27 +258,43 @@ export function DocumentModule({ config, icon }: { config: DocConfig; icon?: Luc
       currency: header.currency || 'USD',
       exchange_rate: Number(header.exchange_rate) || 1,
       status: header.status || config.statusDefault,
-      created_by: userRes.user?.id ?? null,
     };
     for (const f of config.extraHeaderFields) {
       const v = header[f.name];
       headerPayload[f.name] = v === '' || v == null ? null : f.type === 'number' ? Number(v) : v;
     }
 
-    const { data: inserted, error: headErr } = await supabase
-      .from(config.table)
-      .insert(headerPayload)
-      .select('id')
-      .single();
-
-    if (headErr || !inserted) {
-      setSaving(false);
-      setFormError(headErr?.message ?? 'Failed to save document.');
-      return;
+    // Resolve the document id (existing on edit, new on insert).
+    let docId = editingId;
+    if (editingId) {
+      const { error: upErr } = await supabase
+        .from(config.table)
+        .update(headerPayload)
+        .eq('id', editingId);
+      if (upErr) {
+        setSaving(false);
+        setFormError(upErr.message);
+        return;
+      }
+      // Replace the line items wholesale.
+      await supabase.from(config.lineTable).delete().eq(config.lineFk, editingId);
+    } else {
+      headerPayload.created_by = userRes.user?.id ?? null;
+      const { data: inserted, error: headErr } = await supabase
+        .from(config.table)
+        .insert(headerPayload)
+        .select('id')
+        .single();
+      if (headErr || !inserted) {
+        setSaving(false);
+        setFormError(headErr?.message ?? 'Failed to save document.');
+        return;
+      }
+      docId = inserted.id;
     }
 
     const linePayload = validLines.map((l, i) => ({
-      [config.lineFk]: inserted.id,
+      [config.lineFk]: docId,
       item_id: l.item_id || null,
       description: l.description || null,
       ...(config.lineHasHs ? { hs_code: l.hs_code || null } : {}),
@@ -236,8 +306,8 @@ export function DocumentModule({ config, icon }: { config: DocConfig; icon?: Luc
 
     const { error: lineErr } = await supabase.from(config.lineTable).insert(linePayload);
     if (lineErr) {
-      // Roll back the orphan header (best effort — admins can also clean up).
-      await supabase.from(config.table).delete().eq('id', inserted.id);
+      // On a fresh insert, roll back the orphan header (best effort).
+      if (!editingId && docId) await supabase.from(config.table).delete().eq('id', docId);
       setSaving(false);
       setFormError(`Failed to save line items: ${lineErr.message}`);
       return;
@@ -245,7 +315,7 @@ export function DocumentModule({ config, icon }: { config: DocConfig; icon?: Luc
 
     setSaving(false);
     setOpen(false);
-    setToast(`${config.singular} saved successfully.`);
+    setToast(`${config.singular} ${editingId ? 'updated' : 'saved'} successfully.`);
     setTimeout(() => setToast(null), 3000);
     fetchRows();
   }
@@ -411,7 +481,7 @@ export function DocumentModule({ config, icon }: { config: DocConfig; icon?: Luc
                   {c.label}
                 </th>
               ))}
-              <th className="text-right">View</th>
+              <th className="text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -436,10 +506,27 @@ export function DocumentModule({ config, icon }: { config: DocConfig; icon?: Luc
                       {c.render ? c.render(row) : (row[c.key] ?? '—')}
                     </td>
                   ))}
-                  <td className="text-right">
-                    <button onClick={() => openDetail(row)} className="btn-ghost p-1.5" title="View details">
-                      <Eye className="h-4 w-4" />
-                    </button>
+                  <td>
+                    <div className="flex justify-end gap-1">
+                      <button onClick={() => openDetail(row)} className="btn-ghost p-1.5" title="View details">
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => openEdit(row)} className="btn-ghost p-1.5" title="Edit">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => remove(row)}
+                        className="btn-ghost p-1.5 text-red-500 hover:bg-red-50"
+                        title="Delete"
+                        disabled={deletingId === String(row.id)}
+                      >
+                        {deletingId === String(row.id) ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -448,11 +535,15 @@ export function DocumentModule({ config, icon }: { config: DocConfig; icon?: Luc
         </table>
       </div>
 
-      {/* New document drawer */}
+      {/* New / edit document drawer */}
       <Drawer
         open={open}
-        title={`New ${config.singular}`}
-        subtitle={`Create a ${config.singular.toLowerCase()} with line items`}
+        title={editingId ? `Edit ${config.singular}` : `New ${config.singular}`}
+        subtitle={
+          editingId
+            ? `Update this ${config.singular.toLowerCase()} and its line items`
+            : `Create a ${config.singular.toLowerCase()} with line items`
+        }
         onClose={() => setOpen(false)}
       >
         <form onSubmit={save} className="space-y-5">
@@ -574,6 +665,8 @@ export function DocumentModule({ config, icon }: { config: DocConfig; icon?: Luc
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" /> Saving…
                 </>
+              ) : editingId ? (
+                <>Update {config.singular}</>
               ) : (
                 <>Save {config.singular}</>
               )}

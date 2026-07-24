@@ -1,7 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Search, RefreshCw, Loader2, Inbox, Filter, X } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  RefreshCw,
+  Loader2,
+  Inbox,
+  Filter,
+  X,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -42,6 +52,8 @@ export function CrudModule({
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const dateFilter = config.filters?.find((f) => f.kind === 'dateRange') as
     | { kind: 'dateRange'; column: string; label?: string }
@@ -134,15 +146,43 @@ export function CrudModule({
     setTimeout(fetchRows, 0);
   }
 
-  // ---- Add new record -------------------------------------------------------
+  // ---- Add / edit record ----------------------------------------------------
   function openDrawer() {
     const initial: Record<string, string> = {};
     for (const f of config.fields) {
       initial[f.name] = f.default != null ? String(f.default) : '';
     }
     setForm(initial);
+    setEditingId(null);
     setFormError(null);
     setDrawerOpen(true);
+  }
+
+  function openEdit(row: Row) {
+    const initial: Record<string, string> = {};
+    for (const f of config.fields) {
+      const v = row[f.name];
+      initial[f.name] = v === null || v === undefined ? '' : String(v);
+    }
+    setForm(initial);
+    setEditingId(String(row.id));
+    setFormError(null);
+    setDrawerOpen(true);
+  }
+
+  async function remove(row: Row) {
+    if (!confirm(`Delete this ${config.singular.toLowerCase()}? This cannot be undone.`)) return;
+    setDeletingId(String(row.id));
+    const { error } = await supabase.from(config.table).delete().eq('id', row.id);
+    setDeletingId(null);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setToast(`${config.singular} deleted.`);
+    setTimeout(() => setToast(null), 3000);
+    fetchRows();
+    onSaved?.();
   }
 
   function optionsFor(f: FieldDef): Option[] {
@@ -182,18 +222,24 @@ export function CrudModule({
       }
     }
 
-    // Attach creator where the column exists.
-    const { data: userRes } = await supabase.auth.getUser();
-    if (userRes.user) payload['created_by'] = userRes.user.id;
+    let error;
+    if (editingId) {
+      // Update — do not touch created_by.
+      ({ error } = await supabase.from(config.table).update(payload).eq('id', editingId));
+    } else {
+      // Insert — attach the creator.
+      const { data: userRes } = await supabase.auth.getUser();
+      if (userRes.user) payload['created_by'] = userRes.user.id;
+      ({ error } = await supabase.from(config.table).insert(payload));
+    }
 
-    const { error } = await supabase.from(config.table).insert(payload);
     setSaving(false);
     if (error) {
       setFormError(error.message);
       return;
     }
     setDrawerOpen(false);
-    setToast(`${config.singular} saved successfully.`);
+    setToast(`${config.singular} ${editingId ? 'updated' : 'saved'} successfully.`);
     setTimeout(() => setToast(null), 3000);
     fetchRows();
     onSaved?.();
@@ -354,18 +400,19 @@ export function CrudModule({
                   {c.label}
                 </th>
               ))}
+              <th className="text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={config.columns.length} className="py-12 text-center text-slate-400">
+                <td colSpan={config.columns.length + 1} className="py-12 text-center text-slate-400">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={config.columns.length} className="py-14 text-center text-slate-400">
+                <td colSpan={config.columns.length + 1} className="py-14 text-center text-slate-400">
                   <Inbox className="mx-auto mb-2 h-8 w-8" />
                   No records found. Adjust filters or add a new {config.singular.toLowerCase()}.
                 </td>
@@ -378,6 +425,29 @@ export function CrudModule({
                       {c.render ? c.render(row) : (row[c.key] ?? '—')}
                     </td>
                   ))}
+                  <td>
+                    <div className="flex justify-end gap-1">
+                      <button
+                        onClick={() => openEdit(row)}
+                        className="btn-ghost p-1.5"
+                        title="Edit"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => remove(row)}
+                        className="btn-ghost p-1.5 text-red-500 hover:bg-red-50"
+                        title="Delete"
+                        disabled={deletingId === String(row.id)}
+                      >
+                        {deletingId === String(row.id) ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}
@@ -385,11 +455,15 @@ export function CrudModule({
         </table>
       </div>
 
-      {/* Add drawer */}
+      {/* Add / edit drawer */}
       <Drawer
         open={drawerOpen}
-        title={`New ${config.singular}`}
-        subtitle={`Add a new ${config.singular.toLowerCase()} record`}
+        title={editingId ? `Edit ${config.singular}` : `New ${config.singular}`}
+        subtitle={
+          editingId
+            ? `Update this ${config.singular.toLowerCase()} record`
+            : `Add a new ${config.singular.toLowerCase()} record`
+        }
         onClose={() => setDrawerOpen(false)}
       >
         <form onSubmit={submit} className="space-y-4">
@@ -460,6 +534,8 @@ export function CrudModule({
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" /> Saving…
                 </>
+              ) : editingId ? (
+                <>Update {config.singular}</>
               ) : (
                 <>Save {config.singular}</>
               )}

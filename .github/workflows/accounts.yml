@@ -18,7 +18,7 @@ on:
         required: false
         default: ''
       renames_json:
-        description: 'Rename accounts, e.g. [{"from":"rakesh","to":"krishna","full_name":"Krishna"}]'
+        description: 'Rename accounts, e.g. [{"from":"olduser","to":"newuser","full_name":"New Name"}]'
         required: false
         default: ''
 

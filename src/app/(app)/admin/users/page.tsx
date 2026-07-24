@@ -286,7 +286,7 @@ export default function AdminUsersPage() {
               disabled={mode === 'edit'}
               autoCapitalize="none"
               onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
-              placeholder="e.g. rakesh"
+              placeholder="e.g. krishna"
             />
             {mode === 'edit' && (
               <p className="mt-1 text-xs text-slate-400">Username cannot be changed.</p>

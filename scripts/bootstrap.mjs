@@ -53,7 +53,7 @@ if (!url || !serviceKey) {
 // Default accounts if no users.json is supplied.
 const DEFAULTS = [
   { username: 'admin', role: 'admin', full_name: 'Head Office (Admin)' },
-  { username: 'rakesh', role: 'employee', full_name: 'Rakesh Sharma' },
+  { username: 'krishna', role: 'employee', full_name: 'Krishna' },
   { username: 'priya', role: 'employee', full_name: 'Priya Nair' },
 ];
 
