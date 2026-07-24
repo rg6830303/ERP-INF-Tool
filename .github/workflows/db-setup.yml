@@ -3,41 +3,52 @@ name: Supabase DB Setup
 # Applies the schema, provisions the login accounts, and verifies data entry +
 # search filters against the live Supabase project. Runs on GitHub's hosted
 # runners (open network), so it works even when local/agent egress is
-# restricted. Trigger it manually from the Actions tab (or via API).
+# restricted.
+#
+# Credentials come from repo *secrets* by default. For a one-off run they can
+# instead be supplied as workflow inputs (which are masked in the logs). Never
+# commit real credentials to the repo.
 on:
   workflow_dispatch:
     inputs:
-      run_schema:
-        description: 'Apply supabase/setup.sql (schema/RLS/functions)'
-        type: boolean
-        default: true
-      run_seed:
-        description: 'Apply supabase/seed.sql (sample masters)'
-        type: boolean
-        default: true
-      run_bootstrap:
-        description: 'Create admin + employee login accounts'
-        type: boolean
-        default: true
-      run_verify:
-        description: 'Verify data entry + search filters'
-        type: boolean
-        default: true
+      supabase_url:
+        description: 'Override NEXT_PUBLIC_SUPABASE_URL (else uses secret)'
+        required: false
+        default: ''
+      service_key:
+        description: 'Override SUPABASE_SERVICE_ROLE_KEY (else uses secret)'
+        required: false
+        default: ''
+      anon_key:
+        description: 'Override NEXT_PUBLIC_SUPABASE_ANON_KEY (else uses secret)'
+        required: false
+        default: ''
+      db_url:
+        description: 'Override SUPABASE_DB_URL, session mode / 5432 (else uses secret)'
+        required: false
+        default: ''
+      users_json:
+        description: 'Override ERP_USERS_JSON accounts (else uses secret/defaults)'
+        required: false
+        default: ''
 
 jobs:
   setup:
     runs-on: ubuntu-latest
     env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      # Optional: JSON array of accounts to create, e.g.
-      #   [{"username":"admin","role":"admin","full_name":"Head Office","password":"..."}]
-      # If unset, sensible defaults are created with auto-generated passwords
-      # printed to this (private) run log.
-      ERP_USERS_JSON: ${{ secrets.ERP_USERS_JSON }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ inputs.supabase_url || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ inputs.anon_key || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ inputs.service_key || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_DB_URL: ${{ inputs.db_url || secrets.SUPABASE_DB_URL }}
+      ERP_USERS_JSON: ${{ inputs.users_json || secrets.ERP_USERS_JSON }}
     steps:
+      - name: Mask sensitive values
+        run: |
+          [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && echo "::add-mask::$SUPABASE_SERVICE_ROLE_KEY" || true
+          [ -n "$SUPABASE_DB_URL" ] && echo "::add-mask::$SUPABASE_DB_URL" || true
+          [ -n "$ERP_USERS_JSON" ] && echo "::add-mask::$ERP_USERS_JSON" || true
+          [ -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] && echo "::add-mask::$NEXT_PUBLIC_SUPABASE_ANON_KEY" || true
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -46,33 +57,27 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Pre-flight — required secrets
+      - name: Pre-flight — required values present
         run: |
           missing=0
-          for v in NEXT_PUBLIC_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY; do
-            if [ -z "${!v}" ]; then echo "::error::Missing secret $v"; missing=1; fi
+          for v in NEXT_PUBLIC_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY SUPABASE_DB_URL; do
+            if [ -z "${!v}" ]; then echo "::error::Missing $v"; missing=1; fi
           done
-          if [ "${{ inputs.run_schema }}" = "true" ] && [ -z "$SUPABASE_DB_URL" ]; then
-            echo "::error::Missing secret SUPABASE_DB_URL (needed to apply the schema)"; missing=1
-          fi
           if [ "$missing" = "1" ]; then exit 1; fi
-          echo "All required secrets present."
+          echo "All required values present."
 
       - name: Install psql client
-        if: ${{ inputs.run_schema || inputs.run_seed }}
         run: |
           sudo apt-get update -y
           sudo apt-get install -y postgresql-client
 
       - name: Apply schema (setup.sql)
-        if: ${{ inputs.run_schema }}
         run: |
           echo "Applying supabase/setup.sql ..."
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/setup.sql
           echo "Schema applied."
 
-      - name: Apply seed (optional)
-        if: ${{ inputs.run_seed }}
+      - name: Apply seed (sample masters)
         run: |
           psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql || echo "Seed skipped/failed (non-fatal)."
 
@@ -80,9 +85,7 @@ jobs:
         run: npm ci
 
       - name: Provision login accounts (bootstrap)
-        if: ${{ inputs.run_bootstrap }}
         run: npm run bootstrap
 
       - name: Verify data entry + search filters
-        if: ${{ inputs.run_verify }}
         run: npm run verify-db
